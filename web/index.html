@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trip Cost Analyzer</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --blue: #2f81f7;
+      --green: #3fb950;
+      --red: #f85149;
+      --gold: #d29922;
+      --orange: #f0883e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* HEADER */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+    .header-title span { color: var(--blue); }
+    .header-meta { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .header-item { display: flex; flex-direction: column; align-items: flex-end; }
+    .header-item .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-item .value { font-size: 13px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+    .header-item .value.normal { color: var(--text); }
+    .header-item .value.empty { color: var(--muted); font-style: italic; font-weight: 400; }
+
+    /* TABS */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--surface); }
+    .tab { padding: 12px 20px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; user-select: none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* CONTENT */
+    .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state .title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .empty-state .hint { font-size: 13px; }
+
+    /* BUTTONS */
+    .btn { padding: 7px 16px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 500; background: var(--surface2); color: var(--text); transition: background 0.15s; }
+    .btn:hover { background: var(--border); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.primary:hover:not(:disabled) { background: #388bfd; }
+    .btn.danger-outline { background: transparent; border-color: var(--red); color: var(--red); }
+    .btn.danger-outline:hover { background: var(--red); color: #fff; }
+
+    /* SECTION HEADER */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* VEHICLE CARDS */
+    .vehicle-grid { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+    .vehicle-card { background: var(--surface); border: 1px solid var(--blue); border-radius: 10px; padding: 16px 20px; min-width: 220px; max-width: 300px; position: relative; flex: 1; }
+    .vehicle-card .vc-make { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .vehicle-card .vc-model { font-size: 15px; font-weight: 700; margin: 3px 0; }
+    .vehicle-card .vc-trim { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .vehicle-card .vc-stats { display: flex; gap: 16px; }
+    .vehicle-card .vc-stat .val { font-size: 17px; font-weight: 700; color: var(--blue); }
+    .vehicle-card .vc-stat .lbl { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .vehicle-card .vc-remove { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; padding: 0; }
+    .vehicle-card .vc-remove:hover { color: var(--red); }
+    .vehicle-empty { background: var(--surface); border: 2px dashed var(--border); border-radius: 10px; padding: 16px 20px; min-width: 220px; max-width: 300px; flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; min-height: 100px; }
+
+    /* CASCADE SELECTORS */
+    .cascade { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .cascade-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .cascade-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .cascade-group { display: flex; flex-direction: column; gap: 5px; }
+    .cascade-group label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+    .cascade-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 12px; font-size: 13px; outline: none; min-width: 140px; cursor: pointer; }
+    .cascade-select:focus { border-color: var(--blue); }
+    .cascade-select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* STATUS */
+    .status-msg { font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 18px; }
+    .status-msg.ok { color: var(--green); }
+    .status-msg.err { color: var(--red); }
+    .status-msg.loading::after { content: ' ●'; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* DIVIDER */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">Trip Cost <span>Analyzer</span></div>
+  <div class="header-meta">
+    <div class="header-item">
+      <span class="label">Home</span>
+      <span class="value normal empty" id="header-home">Not set</span>
+    </div>
+    <div class="header-item">
+      <span class="label">Gas Price</span>
+      <span class="value empty" id="header-gas">Not set</span>
+    </div>
+    <div class="header-item">
+      <span class="label">Updated</span>
+      <span class="value normal empty" id="header-updated">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('locations')">Locations</div>
+  <div class="tab" onclick="switchTab('charts')">Charts</div>
+  <div class="tab" onclick="switchTab('vehicles')">Vehicles</div>
+  <div class="tab" onclick="switchTab('settings')">Settings</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- LOCATIONS TAB -->
+  <div class="tab-panel active" id="tab-locations">
+    <div class="empty-state">
+      <div class="icon">📍</div>
+      <div class="title">No locations yet</div>
+      <div class="hint">Go to Settings to set your home address and gas price, then add locations here.</div>
+    </div>
+  </div>
+
+  <!-- CHARTS TAB -->
+  <div class="tab-panel" id="tab-charts">
+    <div class="empty-state">
+      <div class="icon">📈</div>
+      <div class="title">No history yet</div>
+      <div class="hint">Charts will appear after your first calculation run.</div>
+    </div>
+  </div>
+
+  <!-- VEHICLES TAB -->
+  <div class="tab-panel" id="tab-vehicles">
+
+    <!-- My Vehicles -->
+    <div class="section-header">
+      <div>
+        <div class="section-title">My Vehicles</div>
+        <div class="section-sub">Up to 3 vehicles for cost comparison</div>
+      </div>
+    </div>
+    <div class="vehicle-grid" id="vehicle-grid"></div>
+
+    <hr class="divider">
+
+    <!-- Add Vehicle cascade -->
+    <div class="cascade">
+      <div class="cascade-title">Add a Vehicle</div>
+      <div class="cascade-row">
+        <div class="cascade-group">
+          <label>Year</label>
+          <select class="cascade-select" id="sel-year" onchange="onYearChange()">
+            <option value="">— Year —</option>
+          </select>
+        </div>
+        <div class="cascade-group">
+          <label>Make</label>
+          <select class="cascade-select" id="sel-make" onchange="onMakeChange()" disabled>
+            <option value="">— Make —</option>
+          </select>
+        </div>
+        <div class="cascade-group">
+          <label>Model</label>
+          <select class="cascade-select" id="sel-model" onchange="onModelChange()" disabled>
+            <option value="">— Model —</option>
+          </select>
+        </div>
+        <div class="cascade-group">
+          <label>Trim</label>
+          <select class="cascade-select" id="sel-trim" disabled>
+            <option value="">— Trim —</option>
+          </select>
+        </div>
+        <div class="cascade-group">
+          <label>&nbsp;</label>
+          <button class="btn primary" id="btn-add-vehicle" onclick="addVehicle()" disabled>+ Add</button>
+        </div>
+      </div>
+      <div class="status-msg" id="vehicle-status"></div>
+    </div>
+
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="empty-state">
+      <div class="icon">⚙️</div>
+      <div class="title">Settings</div>
+      <div class="hint">Coming in the next build slice.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── TABS ────────────────────────────────────────────────────────────────────
+  function switchTab(name) {
+    const names = ['locations', 'charts', 'vehicles', 'settings'];
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── VEHICLE CASCADE ──────────────────────────────────────────────────────────
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('vehicle-status');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+  }
+
+  function resetCascadeFrom(from) {
+    const order = ['make', 'model', 'trim'];
+    const idx = order.indexOf(from);
+    order.slice(idx).forEach(id => {
+      const sel = document.getElementById('sel-' + id);
+      sel.innerHTML = `<option value="">— ${id.charAt(0).toUpperCase() + id.slice(1)} —</option>`;
+      sel.disabled = true;
+    });
+    document.getElementById('btn-add-vehicle').disabled = true;
+  }
+
+  async function onYearChange() {
+    const year = document.getElementById('sel-year').value;
+    resetCascadeFrom('make');
+    if (!year) return;
+    setStatus('Loading makes...', 'loading');
+    try {
+      const r = await fetch(`/api/vehicles/makes?year=${encodeURIComponent(year)}`);
+      const data = await r.json();
+      const sel = document.getElementById('sel-make');
+      sel.innerHTML = '<option value="">— Make —</option>' +
+        data.makes.map(m => `<option value="${m}">${m}</option>`).join('');
+      sel.disabled = false;
+      setStatus('');
+    } catch { setStatus('Failed to load makes.', 'err'); }
+  }
+
+  async function onMakeChange() {
+    const year = document.getElementById('sel-year').value;
+    const make = document.getElementById('sel-make').value;
+    resetCascadeFrom('model');
+    if (!make) return;
+    setStatus('Loading models...', 'loading');
+    try {
+      const r = await fetch(`/api/vehicles/models?year=${encodeURIComponent(year)}&make=${encodeURIComponent(make)}`);
+      const data = await r.json();
+      const sel = document.getElementById('sel-model');
+      sel.innerHTML = '<option value="">— Model —</option>' +
+        data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+      sel.disabled = false;
+      setStatus('');
+    } catch { setStatus('Failed to load models.', 'err'); }
+  }
+
+  async function onModelChange() {
+    const year  = document.getElementById('sel-year').value;
+    const make  = document.getElementById('sel-make').value;
+    const model = document.getElementById('sel-model').value;
+    resetCascadeFrom('trim');
+    if (!model) return;
+    setStatus('Loading trims...', 'loading');
+    try {
+      const r = await fetch(`/api/vehicles/trims?year=${encodeURIComponent(year)}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
+      const data = await r.json();
+      const sel = document.getElementById('sel-trim');
+      sel.innerHTML = '<option value="">— Trim —</option>' +
+        data.trims.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+      sel.disabled = false;
+      sel.onchange = () => {
+        document.getElementById('btn-add-vehicle').disabled = !sel.value;
+      };
+      setStatus('');
+    } catch { setStatus('Failed to load trims.', 'err'); }
+  }
+
+  async function addVehicle() {
+    const year  = document.getElementById('sel-year').value;
+    const make  = document.getElementById('sel-make').value;
+    const model = document.getElementById('sel-model').value;
+    const trimSel = document.getElementById('sel-trim');
+    const trimId   = trimSel.value;
+    const trimName = trimSel.options[trimSel.selectedIndex]?.dataset.name || trimSel.options[trimSel.selectedIndex]?.text || '';
+
+    if (!trimId) return;
+    setStatus('Fetching fuel economy data...', 'loading');
+    document.getElementById('btn-add-vehicle').disabled = true;
+
+    try {
+      const r = await fetch('/api/my-vehicles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fueleconomy_id: trimId, year: parseInt(year), make, model, trim: trimName })
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        setStatus(err.detail || 'Failed to add vehicle.', 'err');
+        document.getElementById('btn-add-vehicle').disabled = false;
+        return;
+      }
+      setStatus('Vehicle added.', 'ok');
+      resetCascadeFrom('make');
+      document.getElementById('sel-year').value = '';
+      await loadMyVehicles();
+    } catch { setStatus('Network error.', 'err'); document.getElementById('btn-add-vehicle').disabled = false; }
+  }
+
+  // ── MY VEHICLES RENDER ────────────────────────────────────────────────────────
+  async function loadMyVehicles() {
+    const r = await fetch('/api/my-vehicles');
+    const data = await r.json();
+    renderVehicleGrid(data.vehicles);
+    const addBtn = document.getElementById('btn-add-vehicle');
+    if (data.vehicles.length >= 3) {
+      addBtn.disabled = true;
+      setStatus('Maximum 3 vehicles reached. Remove one to add another.', 'err');
+    }
+  }
+
+  function renderVehicleGrid(vehicles) {
+    const grid = document.getElementById('vehicle-grid');
+    grid.innerHTML = '';
+
+    vehicles.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'vehicle-card';
+      card.innerHTML = `
+        <button class="vc-remove" title="Remove" onclick="removeVehicle(${v.id})">×</button>
+        <div class="vc-make">${v.make}</div>
+        <div class="vc-model">${v.model}</div>
+        <div class="vc-trim">${v.year} · ${v.trim || ''}</div>
+        <div class="vc-stats">
+          <div class="vc-stat"><div class="val">${v.city_l100km ?? '—'}</div><div class="lbl">City</div></div>
+          <div class="vc-stat"><div class="val">${v.hwy_l100km ?? '—'}</div><div class="lbl">Hwy</div></div>
+          <div class="vc-stat"><div class="val">${v.combined_l100km ?? '—'}</div><div class="lbl">Comb</div></div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    // Empty slot placeholder
+    if (vehicles.length < 3) {
+      const empty = document.createElement('div');
+      empty.className = 'vehicle-empty';
+      empty.textContent = vehicles.length === 0 ? 'No vehicles added yet' : 'Add another vehicle below';
+      grid.appendChild(empty);
+    }
+  }
+
+  async function removeVehicle(id) {
+    if (!confirm('Remove this vehicle?')) return;
+    await fetch(`/api/my-vehicles/${id}`, { method: 'DELETE' });
+    setStatus('');
+    await loadMyVehicles();
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────────
+  async function init() {
+    // Load years into cascade
+    try {
+      const r = await fetch('/api/vehicles/years');
+      const data = await r.json();
+      const sel = document.getElementById('sel-year');
+      sel.innerHTML = '<option value="">— Year —</option>' +
+        data.years.map(y => `<option value="${y}">${y}</option>`).join('');
+    } catch { console.warn('Could not load years from fueleconomy.gov'); }
+
+    await loadMyVehicles();
+  }
+
+  init();
+</script>
+</body>
+</html>
