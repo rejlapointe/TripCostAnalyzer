@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trip Cost Analyzer — Mockup</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --blue: #2f81f7;
+      --green: #3fb950;
+      --red: #f85149;
+      --gold: #d29922;
+      --orange: #f0883e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* HEADER */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title { font-size: 1.1rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+    .header-title span { color: var(--blue); }
+    .header-meta { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .header-item { display: flex; flex-direction: column; align-items: flex-end; }
+    .header-item .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-item .value { font-size: 13px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+    .header-item .value.normal { color: var(--text); }
+
+    /* TABS */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--surface); }
+    .tab { padding: 12px 20px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* CONTENT */
+    .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* TOOLBAR */
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .toolbar-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+    .toolbar-right { display: flex; gap: 8px; }
+
+    /* BUTTONS */
+    .btn { padding: 7px 16px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: var(--surface2); color: var(--text); }
+    .btn:hover { background: var(--border); }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.primary:hover { background: #388bfd; }
+    .btn.success { background: var(--green); border-color: var(--green); color: #000; }
+    .btn.success:hover { opacity: 0.9; }
+    .btn.danger { background: transparent; border-color: var(--red); color: var(--red); }
+    .btn.danger:hover { background: var(--red); color: #fff; }
+    .btn.sm { padding: 4px 10px; font-size: 12px; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); }
+    thead th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    thead th.center { text-align: center; }
+    thead th.right { text-align: right; }
+    thead .vehicle-group { background: #1a2332; color: var(--blue); text-align: center; font-size: 11px; padding: 6px 14px; border-bottom: 1px solid var(--border); }
+    thead .vehicle-group.v2 { background: #1a2d20; color: var(--green); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 10px 14px; white-space: nowrap; }
+    tbody td.center { text-align: center; }
+    tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody td.green { color: var(--green); font-weight: 600; }
+    tbody td.muted { color: var(--muted); }
+
+    /* DAYS SELECTOR */
+    .days-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 3px 6px; font-size: 13px; cursor: pointer; width: 52px; text-align: center; }
+    .days-select:focus { outline: none; border-color: var(--blue); }
+
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+
+    /* VEHICLE CARDS */
+    .vehicle-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+    .vehicle-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; flex: 1; min-width: 240px; max-width: 320px; position: relative; }
+    .vehicle-card.active { border-color: var(--blue); }
+    .vehicle-card.active2 { border-color: var(--green); }
+    .vehicle-card .make { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .vehicle-card .model { font-size: 15px; font-weight: 700; margin: 4px 0; }
+    .vehicle-card .year { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .vehicle-card .stats { display: flex; gap: 16px; }
+    .vehicle-card .stat { text-align: center; }
+    .vehicle-card .stat .val { font-size: 16px; font-weight: 700; color: var(--blue); }
+    .vehicle-card.active2 .stat .val { color: var(--green); }
+    .vehicle-card .stat .lbl { font-size: 10px; color: var(--muted); }
+    .vehicle-card .remove-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; }
+    .vehicle-card .remove-btn:hover { color: var(--red); }
+    .add-vehicle-card { background: transparent; border: 2px dashed var(--border); border-radius: 8px; padding: 16px; flex: 1; min-width: 240px; max-width: 320px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); font-size: 13px; gap: 8px; transition: all 0.15s; }
+    .add-vehicle-card:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* SEARCH */
+    .search-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; color: var(--text); font-size: 13px; width: 100%; outline: none; }
+    .search-box:focus { border-color: var(--blue); }
+    .search-results { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; overflow: hidden; }
+    .search-result-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: var(--border); }
+    .search-result-item .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* SETTINGS FORM */
+    .form-group { margin-bottom: 20px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+    .form-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 14px; color: var(--text); font-size: 14px; width: 100%; outline: none; }
+    .form-input:focus { border-color: var(--blue); }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+
+    /* CHARTS */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+
+    /* BADGE */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.blue { background: rgba(47,129,247,0.15); color: var(--blue); }
+    .badge.green { background: rgba(63,185,80,0.15); color: var(--green); }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 480px; max-width: 95vw; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--text); }
+
+    /* VEHICLE SEARCH MODAL */
+    .nrcan-results { max-height: 300px; overflow-y: auto; margin-top: 12px; }
+    .nrcan-row { padding: 10px 14px; cursor: pointer; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .nrcan-row:hover { background: var(--surface2); }
+    .nrcan-row .name { font-size: 13px; font-weight: 500; }
+    .nrcan-row .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .nrcan-row .l100 { font-size: 13px; font-weight: 700; color: var(--blue); }
+
+    /* STATUS BAR */
+    .status { font-size: 12px; color: var(--muted); padding: 6px 0; }
+    .status.ok { color: var(--green); }
+
+    /* SECTION HEADER */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; font-size: 13px; z-index: 300; display: none; }
+    .toast.show { display: block; animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* DIVIDER */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    .text-muted { color: var(--muted); }
+    .text-green { color: var(--green); }
+    .text-blue { color: var(--blue); }
+    .mt-4 { margin-top: 4px; }
+    .mt-8 { margin-top: 8px; }
+    .mb-12 { margin-bottom: 12px; }
+
+    /* NRCan filter row */
+    .filter-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .filter-row select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: 13px; flex: 1; outline: none; }
+    .filter-row select:focus { border-color: var(--blue); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">Trip Cost <span>Analyzer</span></div>
+  <div class="header-meta">
+    <div class="header-item">
+      <span class="label">Home</span>
+      <span class="value normal">123 Main St, Ottawa ON</span>
+    </div>
+    <div class="header-item">
+      <span class="label">Gas Price</span>
+      <span class="value" id="header-gas">$1.650 /L</span>
+    </div>
+    <div class="header-item">
+      <span class="label">Updated</span>
+      <span class="value normal">Apr 10, 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('locations')">Locations</div>
+  <div class="tab" onclick="switchTab('charts')">Charts</div>
+  <div class="tab" onclick="switchTab('vehicles')">Vehicles</div>
+  <div class="tab" onclick="switchTab('settings')">Settings</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- LOCATIONS TAB -->
+  <div class="tab-panel active" id="tab-locations">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn primary" onclick="openAddLocation()">+ Add Location</button>
+        <button class="btn" onclick="refreshAll()">↻ Refresh</button>
+        <span class="status ok" id="refresh-status">All costs calculated · Apr 10, 2026 10:42 AM</span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="locations-table">
+        <thead>
+          <tr>
+            <th rowspan="2">Location</th>
+            <th rowspan="2" class="center">Distance<br>(km)</th>
+            <th rowspan="2" class="center">Days/<br>Week</th>
+            <th colspan="4" class="vehicle-group">🚗 2022 Toyota Camry LE &nbsp;<span class="badge blue">8.1 L/100km</span></th>
+            <th colspan="4" class="vehicle-group v2" id="v2-header" style="display:none">🔵 2019 Honda Civic LX &nbsp;<span class="badge green">6.7 L/100km</span></th>
+          </tr>
+          <tr>
+            <th class="right">Cost/Trip</th>
+            <th class="right">Cost/100km</th>
+            <th class="right">Monthly</th>
+            <th class="right">Annual</th>
+            <th class="right" id="v2-c1" style="display:none">Cost/Trip</th>
+            <th class="right" id="v2-c2" style="display:none">Cost/100km</th>
+            <th class="right" id="v2-c3" style="display:none">Monthly</th>
+            <th class="right" id="v2-c4" style="display:none">Annual</th>
+          </tr>
+        </thead>
+        <tbody id="locations-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CHARTS TAB -->
+  <div class="tab-panel" id="tab-charts">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Cost per Trip — History</div>
+        <canvas id="tripCostChart" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Gas Price — History ($/L)</div>
+        <canvas id="gasPriceChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- VEHICLES TAB -->
+  <div class="tab-panel" id="tab-vehicles">
+    <div class="section-header">
+      <div class="section-title">My Vehicles <span class="text-muted" style="font-size:13px;font-weight:400">(max 3)</span></div>
+    </div>
+    <div class="vehicle-grid" id="vehicle-grid">
+      <div class="vehicle-card active">
+        <button class="remove-btn" title="Remove">×</button>
+        <div class="make">Toyota</div>
+        <div class="model">Camry LE</div>
+        <div class="year">2022 · 2.5L · Auto · Regular</div>
+        <div class="stats">
+          <div class="stat"><div class="val">9.3</div><div class="lbl">City</div></div>
+          <div class="stat"><div class="val">6.6</div><div class="lbl">Hwy</div></div>
+          <div class="stat"><div class="val">8.1</div><div class="lbl">Comb</div></div>
+        </div>
+      </div>
+      <div class="vehicle-card active2" id="v2-card">
+        <button class="remove-btn" onclick="removeVehicle2()" title="Remove">×</button>
+        <div class="make">Honda</div>
+        <div class="model">Civic LX</div>
+        <div class="year">2019 · 2.0L · CVT · Regular</div>
+        <div class="stats">
+          <div class="stat"><div class="val">8.0</div><div class="lbl">City</div></div>
+          <div class="stat"><div class="val">5.9</div><div class="lbl">Hwy</div></div>
+          <div class="stat"><div class="val">6.7</div><div class="lbl">Comb</div></div>
+        </div>
+      </div>
+      <div class="add-vehicle-card" onclick="openVehicleSearch()">
+        <span style="font-size:20px">+</span> Add Vehicle
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="card-title" style="margin-bottom:12px">Search NRCan Vehicle Database</div>
+    <div class="filter-row">
+      <select id="filter-year" onchange="filterNRCan()">
+        <option value="">All Years</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+        <option value="2022" selected>2022</option>
+        <option value="2021">2021</option>
+        <option value="2020">2020</option>
+        <option value="2019">2019</option>
+        <option value="2018">2018</option>
+      </select>
+      <select id="filter-make" onchange="filterNRCan()">
+        <option value="">All Makes</option>
+        <option value="Toyota" selected>Toyota</option>
+        <option value="Honda">Honda</option>
+        <option value="Ford">Ford</option>
+        <option value="Chevrolet">Chevrolet</option>
+        <option value="Hyundai">Hyundai</option>
+        <option value="Kia">Kia</option>
+        <option value="Mazda">Mazda</option>
+        <option value="Volkswagen">Volkswagen</option>
+      </select>
+      <input class="search-box" style="flex:2" type="text" placeholder="Search model..." id="nrcan-search" oninput="filterNRCan()">
+    </div>
+    <div class="table-wrap">
+      <table id="nrcan-table">
+        <thead>
+          <tr>
+            <th>Year</th><th>Make</th><th>Model</th><th>Engine</th><th>Trans</th><th>Fuel</th>
+            <th class="right">City</th><th class="right">Hwy</th><th class="right">Comb</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="nrcan-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div class="tab-panel" id="tab-settings">
+    <div style="max-width: 520px;">
+      <div class="card">
+        <div class="card-title">Home Address</div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <input class="form-input" type="text" id="home-address" value="123 Main Street, Ottawa, ON" placeholder="Enter your home address">
+          <div class="form-hint">Used as the starting point for all distance calculations. Geocoded once and stored.</div>
+        </div>
+        <button class="btn primary" onclick="saveAddress()">Save Address</button>
+        <span class="status ok mt-4" id="addr-status" style="display:inline-block;margin-left:12px"></span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Gas Price</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Current Price ($/L)</label>
+            <input class="form-input" type="number" id="gas-price" value="1.650" step="0.001" min="0" placeholder="e.g. 1.650">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <input class="form-input" type="text" id="gas-notes" placeholder="e.g. Costco pump">
+          </div>
+        </div>
+        <button class="btn primary" onclick="saveGasPrice()">Save & Log</button>
+        <span class="status ok mt-4" id="gas-status" style="display:inline-block;margin-left:12px"></span>
+        <div class="form-hint mt-8">Each save is logged to history and used in all trip cost calculations.</div>
+
+        <hr class="divider">
+        <div class="card-title">Gas Price Log</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th class="right">$/L</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Apr 10, 2026</td><td class="right">$1.650</td><td class="muted">Costco pump</td></tr>
+              <tr><td>Mar 22, 2026</td><td class="right">$1.610</td><td class="muted">—</td></tr>
+              <tr><td>Feb 14, 2026</td><td class="right">$1.550</td><td class="muted">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ADD LOCATION MODAL -->
+<div class="modal-overlay" id="modal-location">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Location</div>
+      <button class="modal-close" onclick="closeModal('modal-location')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Search Address or Place</label>
+      <input class="search-box" type="text" id="loc-search" placeholder="e.g. Ottawa Airport, Costco Kanata..." oninput="searchLocation(this.value)">
+    </div>
+    <div id="loc-results"></div>
+    <div class="form-group" id="loc-confirm" style="display:none">
+      <label class="form-label">Label (optional)</label>
+      <input class="form-input" type="text" id="loc-label" placeholder="e.g. Work, Gym, Costco...">
+      <div class="form-hint mt-4" id="loc-dist-hint"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn primary" id="loc-add-btn" onclick="confirmAddLocation()" style="display:none">Add Location</button>
+      <button class="btn" onclick="closeModal('modal-location')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- VEHICLE SEARCH MODAL -->
+<div class="modal-overlay" id="modal-vehicle">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Vehicle</div>
+      <button class="modal-close" onclick="closeModal('modal-vehicle')">×</button>
+    </div>
+    <input class="search-box" type="text" placeholder="Search make, model, year..." oninput="searchVehicleModal(this.value)" id="modal-v-search">
+    <div class="nrcan-results" id="modal-v-results"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const GAS = 1.650;
+const V1 = { name: '2022 Toyota Camry LE', l100: 8.1 };
+const V2 = { name: '2019 Honda Civic LX', l100: 6.7 };
+let showV2 = true;
+
+const LOCATIONS = [
+  { id: 1, label: 'Ottawa Airport', address: 'Ottawa Macdonald–Cartier Airport, Ottawa ON', dist: 28, days: 2 },
+  { id: 2, label: 'Costco Kanata', address: '0150 Eagleson Rd, Ottawa ON', dist: 15, days: 5 },
+  { id: 3, label: 'Rideau Centre', address: '50 Rideau St, Ottawa ON', dist: 9, days: 3 },
+  { id: 4, label: 'Gatineau Park Trailhead', address: 'Gatineau Park, QC', dist: 22, days: 1 },
+];
+
+const NRCAN = [
+  { year:2022, make:'Toyota', model:'Camry LE', engine:'2.5L', trans:'8A', fuel:'Regular', city:9.3, hwy:6.6, comb:8.1 },
+  { year:2022, make:'Toyota', model:'Camry SE', engine:'2.5L', trans:'8A', fuel:'Regular', city:9.5, hwy:6.8, comb:8.3 },
+  { year:2022, make:'Toyota', model:'Camry XSE V6', engine:'3.5L', trans:'8A', fuel:'Regular', city:11.3, hwy:7.8, comb:9.8 },
+  { year:2022, make:'Toyota', model:'Corolla LE', engine:'2.0L', trans:'CVT', fuel:'Regular', city:8.1, hwy:6.1, comb:7.2 },
+  { year:2022, make:'Toyota', model:'RAV4 LE', engine:'2.5L', trans:'8A', fuel:'Regular', city:9.9, hwy:7.6, comb:8.9 },
+  { year:2022, make:'Toyota', model:'Highlander LE', engine:'3.5L', trans:'8A', fuel:'Regular', city:12.4, hwy:9.0, comb:10.9 },
+  { year:2019, make:'Honda', model:'Civic LX', engine:'2.0L', trans:'CVT', fuel:'Regular', city:8.0, hwy:5.9, comb:6.7 },
+  { year:2019, make:'Honda', model:'Accord Sport', engine:'1.5L', trans:'CVT', fuel:'Regular', city:8.2, hwy:6.2, comb:7.4 },
+  { year:2023, make:'Ford', model:'F-150 XLT', engine:'2.7L', trans:'10A', fuel:'Regular', city:14.8, hwy:10.7, comb:13.0 },
+  { year:2023, make:'Ford', model:'Escape SE', engine:'1.5L', trans:'8A', fuel:'Regular', city:9.5, hwy:7.5, comb:8.6 },
+  { year:2023, make:'Hyundai', model:'Elantra Preferred', engine:'2.0L', trans:'CVT', fuel:'Regular', city:7.8, hwy:5.9, comb:6.9 },
+  { year:2023, make:'Kia', model:'Sportage LX', engine:'2.5L', trans:'8A', fuel:'Regular', city:10.5, hwy:8.3, comb:9.5 },
+  { year:2024, make:'Mazda', model:'CX-5 GS', engine:'2.5L', trans:'6A', fuel:'Regular', city:10.0, hwy:8.0, comb:9.2 },
+];
+
+// ── CALCULATIONS ──────────────────────────────────────────────────────────────
+function calcCosts(dist, days, l100, gas) {
+  const rt = dist * 2;
+  const tripCost = rt * (l100 / 100) * gas;
+  const per100 = gas * l100;
+  const monthly = tripCost * days * 4.33;
+  const annual = tripCost * days * 52;
+  return { tripCost, per100, monthly, annual };
+}
+
+function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmtLarge(n) { return '$' + Math.round(n).toLocaleString(); }
+
+// ── RENDER LOCATIONS TABLE ────────────────────────────────────────────────────
+function renderLocations() {
+  const tbody = document.getElementById('locations-tbody');
+  tbody.innerHTML = '';
+
+  // Toggle V2 columns
+  const v2els = ['v2-header','v2-c1','v2-c2','v2-c3','v2-c4'];
+  v2els.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = showV2 ? '' : 'none';
+  });
+
+  LOCATIONS.forEach(loc => {
+    const c1 = calcCosts(loc.dist, loc.days, V1.l100, GAS);
+    const c2 = calcCosts(loc.dist, loc.days, V2.l100, GAS);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:600">${loc.label}</div>
+        <div style="font-size:11px;color:var(--muted)">${loc.address}</div>
+      </td>
+      <td class="center">${loc.dist} km</td>
+      <td class="center">
+        <select class="days-select" onchange="updateDays(${loc.id}, this.value)">
+          ${[1,2,3,4,5,6,7].map(d => `<option ${d===loc.days?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </td>
+      <td class="right green">${fmt(c1.tripCost)}</td>
+      <td class="right">${fmt(c1.per100)}</td>
+      <td class="right">${fmtLarge(c1.monthly)}</td>
+      <td class="right">${fmtLarge(c1.annual)}</td>
+      ${showV2 ? `
+      <td class="right" style="color:var(--green)">${fmt(c2.tripCost)}</td>
+      <td class="right">${fmt(c2.per100)}</td>
+      <td class="right">${fmtLarge(c2.monthly)}</td>
+      <td class="right">${fmtLarge(c2.annual)}</td>
+      ` : ''}
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateDays(id, val) {
+  const loc = LOCATIONS.find(l => l.id === id);
+  if (loc) { loc.days = parseInt(val); renderLocations(); }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['locations','charts','vehicles','settings'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'charts') renderCharts();
+  if (name === 'vehicles') renderNRCan();
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── ADD LOCATION ──────────────────────────────────────────────────────────────
+const LOC_SUGGESTIONS = [
+  { label: 'Ottawa Macdonald–Cartier Airport', address: 'Ottawa Airport, Ottawa ON', dist: 28 },
+  { label: 'Costco Kanata', address: '150 Eagleson Rd, Ottawa ON', dist: 15 },
+  { label: 'Rideau Centre Mall', address: '50 Rideau St, Ottawa ON', dist: 9 },
+  { label: 'Gatineau Park — Champlain Lookout', address: 'Gatineau Park, QC', dist: 22 },
+  { label: 'Place du Portage (Federal Gov)', address: 'Gatineau, QC', dist: 11 },
+  { label: 'Carlingwood Shopping Centre', address: '2121 Carling Ave, Ottawa ON', dist: 7 },
+  { label: 'Kanata Centrum', address: 'Terry Fox Dr, Ottawa ON', dist: 19 },
+];
+let selectedLocSuggestion = null;
+
+function openAddLocation() {
+  document.getElementById('loc-search').value = '';
+  document.getElementById('loc-results').innerHTML = '';
+  document.getElementById('loc-confirm').style.display = 'none';
+  document.getElementById('loc-add-btn').style.display = 'none';
+  document.getElementById('loc-label').value = '';
+  selectedLocSuggestion = null;
+  openModal('modal-location');
+  setTimeout(() => document.getElementById('loc-search').focus(), 100);
+}
+
+function searchLocation(val) {
+  const res = document.getElementById('loc-results');
+  if (!val.trim()) { res.innerHTML = ''; return; }
+  const filtered = LOC_SUGGESTIONS.filter(s =>
+    s.label.toLowerCase().includes(val.toLowerCase()) ||
+    s.address.toLowerCase().includes(val.toLowerCase())
+  );
+  if (!filtered.length) {
+    res.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:13px">No results — try a different search</div>';
+    return;
+  }
+  res.innerHTML = '<div class="search-results">' +
+    filtered.map((s,i) => `
+      <div class="search-result-item" onclick="selectLocation(${i})">
+        <div>${s.label}</div>
+        <div class="sub">${s.address} · ~${s.dist} km from home</div>
+      </div>`).join('') +
+    '</div>';
+  res._data = filtered;
+}
+
+function selectLocation(i) {
+  const suggestions = document.getElementById('loc-results')._data;
+  selectedLocSuggestion = suggestions[i];
+  document.getElementById('loc-search').value = selectedLocSuggestion.label;
+  document.getElementById('loc-results').innerHTML = '';
+  document.getElementById('loc-label').value = selectedLocSuggestion.label;
+  document.getElementById('loc-dist-hint').textContent = `Distance from home: ~${selectedLocSuggestion.dist} km (one-way) · ${selectedLocSuggestion.dist * 2} km round trip`;
+  document.getElementById('loc-confirm').style.display = 'block';
+  document.getElementById('loc-add-btn').style.display = 'inline-block';
+}
+
+function confirmAddLocation() {
+  if (!selectedLocSuggestion) return;
+  const label = document.getElementById('loc-label').value || selectedLocSuggestion.label;
+  LOCATIONS.push({
+    id: Date.now(),
+    label,
+    address: selectedLocSuggestion.address,
+    dist: selectedLocSuggestion.dist,
+    days: 5
+  });
+  closeModal('modal-location');
+  renderLocations();
+  showToast(`"${label}" added`);
+}
+
+// ── VEHICLES ──────────────────────────────────────────────────────────────────
+function removeVehicle2() {
+  showV2 = false;
+  document.getElementById('v2-card').style.display = 'none';
+  renderLocations();
+  showToast('Honda Civic removed');
+}
+
+function openVehicleSearch() { openModal('modal-vehicle'); searchVehicleModal(''); }
+
+function searchVehicleModal(val) {
+  const filtered = val.trim()
+    ? NRCAN.filter(v => `${v.year} ${v.make} ${v.model}`.toLowerCase().includes(val.toLowerCase()))
+    : NRCAN.slice(0, 12);
+  const res = document.getElementById('modal-v-results');
+  res.innerHTML = filtered.map(v => `
+    <div class="nrcan-row" onclick="addVehicleFromModal('${v.year} ${v.make} ${v.model}', ${v.comb})">
+      <div>
+        <div class="name">${v.year} ${v.make} ${v.model}</div>
+        <div class="sub">${v.engine} · ${v.trans} · ${v.fuel}</div>
+      </div>
+      <div class="l100">${v.comb} L/100km</div>
+    </div>`).join('');
+}
+
+function addVehicleFromModal(name, l100) {
+  closeModal('modal-vehicle');
+  showToast(`${name} added to comparison`);
+}
+
+// ── NRCAN TABLE ───────────────────────────────────────────────────────────────
+function renderNRCan(data) {
+  const rows = data || NRCAN;
+  document.getElementById('nrcan-tbody').innerHTML = rows.map(v => `
+    <tr>
+      <td>${v.year}</td><td>${v.make}</td><td>${v.model}</td>
+      <td class="muted">${v.engine}</td><td class="muted">${v.trans}</td><td class="muted">${v.fuel}</td>
+      <td class="right">${v.city}</td><td class="right">${v.hwy}</td>
+      <td class="right text-blue" style="font-weight:700">${v.comb}</td>
+      <td><button class="btn sm" onclick="showToast('${v.year} ${v.make} ${v.model} added')">+ Add</button></td>
+    </tr>`).join('');
+}
+
+function filterNRCan() {
+  const year = document.getElementById('filter-year').value;
+  const make = document.getElementById('filter-make').value;
+  const search = document.getElementById('nrcan-search').value.toLowerCase();
+  const filtered = NRCAN.filter(v =>
+    (!year || v.year == year) &&
+    (!make || v.make === make) &&
+    (!search || v.model.toLowerCase().includes(search))
+  );
+  renderNRCan(filtered);
+}
+
+// ── REFRESH ───────────────────────────────────────────────────────────────────
+function refreshAll() {
+  document.getElementById('refresh-status').textContent = 'Refreshing...';
+  document.getElementById('refresh-status').className = 'status';
+  setTimeout(() => {
+    renderLocations();
+    document.getElementById('refresh-status').textContent = 'All costs calculated · ' + new Date().toLocaleString('en-CA', {month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+    document.getElementById('refresh-status').className = 'status ok';
+  }, 600);
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function saveAddress() {
+  const val = document.getElementById('home-address').value;
+  document.getElementById('addr-status').textContent = 'Geocoding...';
+  setTimeout(() => {
+    document.getElementById('addr-status').textContent = '✓ Saved — coordinates stored';
+  }, 800);
+}
+
+function saveGasPrice() {
+  const val = parseFloat(document.getElementById('gas-price').value);
+  document.getElementById('header-gas').textContent = '$' + val.toFixed(3) + ' /L';
+  document.getElementById('gas-status').textContent = '✓ Saved & logged';
+  renderLocations();
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+let chartsRendered = false;
+function renderCharts() {
+  if (chartsRendered) return;
+  chartsRendered = true;
+
+  const months = ['Jan','Feb','Mar','Apr'];
+  const chartDefaults = {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#8b949e', font: { size: 12 } } } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+    }
+  };
+
+  new Chart(document.getElementById('tripCostChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Ottawa Airport', data: [8.20, 8.05, 8.37, 8.48], borderColor: '#2f81f7', backgroundColor: 'rgba(47,129,247,0.1)', tension: 0.3, fill: true },
+        { label: 'Costco Kanata', data: [4.40, 4.32, 4.49, 4.55], borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.1)', tension: 0.3, fill: true },
+        { label: 'Rideau Centre', data: [2.64, 2.59, 2.69, 2.73], borderColor: '#d29922', backgroundColor: 'rgba(210,153,34,0.1)', tension: 0.3, fill: true },
+      ]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}` } } } }
+  });
+
+  new Chart(document.getElementById('gasPriceChart'), {
+    type: 'line',
+    data: {
+      labels: ['Feb 14', 'Mar 22', 'Apr 10'],
+      datasets: [{
+        label: '$/L',
+        data: [1.550, 1.610, 1.650],
+        borderColor: '#f0883e',
+        backgroundColor: 'rgba(240,136,62,0.1)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 5
+      }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, tooltip: { callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(3)}/L` } } } }
+  });
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderLocations();
+renderNRCan();
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+</script>
+</body>
+</html>

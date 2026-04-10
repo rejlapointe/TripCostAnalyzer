@@ -16,6 +16,7 @@ class MyVehicle(Base):
     city_l100km     = Column(Float)
     hwy_l100km      = Column(Float)
     combined_l100km = Column(Float, nullable=False)
+    tank_size_l     = Column(Float, nullable=True)
     display_order   = Column(Integer, default=0)
     added_at        = Column(DateTime, default=datetime.utcnow)
 
@@ -63,7 +64,7 @@ class TripCostHistory(Base):
     distance_km     = Column(Float)
     combined_l100km = Column(Float)
     cost_per_trip   = Column(Float)
-    cost_per_100km  = Column(Float)
+    weekly_cost     = Column(Float)
     monthly_cost    = Column(Float)
     annual_cost     = Column(Float)
     calculated_at   = Column(DateTime, default=datetime.utcnow)

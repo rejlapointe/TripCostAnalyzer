@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trip Cost Analyzer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #0d1117;
@@ -50,7 +53,7 @@
     .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
     /* CONTENT */
-    .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .content { padding: 24px; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
@@ -106,6 +109,62 @@
 
     /* DIVIDER */
     .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+    /* SETTINGS FORMS */
+    .settings-wrap { max-width: 560px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+    .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 14px; outline: none; }
+    .form-input:focus { border-color: var(--blue); }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+
+    /* ADDRESS SEARCH DROPDOWN */
+    .addr-wrap { position: relative; }
+    .addr-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2); border: 1px solid var(--blue); border-radius: 6px; margin-top: 2px; z-index: 50; overflow-y: auto; max-height: 260px; display: none; }
+    .addr-dropdown.open { display: block; }
+    .addr-result { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .addr-result:last-child { border-bottom: none; }
+    .addr-result:hover { background: var(--border); }
+    .addr-result .addr-main { font-weight: 500; }
+    .addr-result .addr-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* MAP MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 680px; max-width: 96vw; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--text); }
+    #map { height: 380px; border-radius: 8px; border: 1px solid var(--border); }
+    #loc-map { height: 760px; border-radius: 8px; border: 1px solid var(--border); }
+    #loc-map-modal .modal { width: 1020px; }
+    .map-hint { font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 16px; }
+    .map-selected { font-size: 13px; color: var(--green); margin-top: 6px; min-height: 18px; font-weight: 500; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+    /* PREREQS BANNER */
+    .prereqs-banner { background: #161b22; border: 1px solid #d29922; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--gold); display: flex; align-items: center; gap: 10px; }
+    .prereqs-banner .pi { font-size: 16px; flex-shrink: 0; }
+    .prereqs-banner a { color: var(--blue); }
+    .prereqs-banner a:hover { text-decoration: underline; }
+
+    /* GAS LOG TABLE */
+    .table-wrap { border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); }
+    thead th { background: var(--surface2); padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    thead th.right { text-align: right; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 9px 14px; font-size: 13px; }
+    tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody td.muted { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -142,19 +201,121 @@
 
   <!-- LOCATIONS TAB -->
   <div class="tab-panel active" id="tab-locations">
-    <div class="empty-state">
-      <div class="icon">📍</div>
-      <div class="title">No locations yet</div>
-      <div class="hint">Go to Settings to set your home address and gas price, then add locations here.</div>
+    <div class="section-header">
+      <div>
+        <div class="section-title">Locations</div>
+        <div class="section-sub">Destinations for trip cost calculation</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center">
+        <div style="display:flex; align-items:center; gap:5px">
+          <span style="font-size:11px; color:var(--muted); white-space:nowrap">$/L</span>
+          <input type="number" id="header-gas-input" step="0.001" min="0" placeholder="0.000"
+            style="width:82px; background:var(--surface2); border:1px solid var(--border); border-radius:5px; padding:5px 8px; color:var(--green); font-size:13px; font-weight:600; outline:none; font-variant-numeric:tabular-nums"
+            onfocus="this.style.borderColor='var(--blue)'"
+            onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter') calculateAndRender()">
+        </div>
+        <span class="status-msg" id="calc-status"></span>
+        <button class="btn" id="btn-refresh" onclick="calculateAndRender()">↻ Refresh</button>
+        <button class="btn primary" onclick="openAddLocation()">+ Add Location</button>
+      </div>
+    </div>
+    <div id="prereqs-banner" style="display:none"></div>
+    <div id="locations-list">
+      <div class="empty-state">
+        <div class="icon">📍</div>
+        <div class="title">No locations yet</div>
+        <div class="hint">Add your first destination above. Make sure your home address is set in Settings first.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD LOCATION MODAL -->
+  <div class="modal-overlay" id="loc-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Add Location</div>
+        <button class="modal-close" onclick="closeAddLocation()">×</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Search by name or address</label>
+        <div class="addr-wrap">
+          <input class="form-input" id="loc-search" placeholder="e.g. Ottawa Airport, Costco Kanata" autocomplete="off" oninput="onLocSearchInput()">
+          <div class="addr-dropdown" id="loc-dropdown"></div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--muted); font-size:12px; margin: 8px 0">— or —</div>
+      <button class="btn" onclick="openLocMapPicker()">📍 Pick on Map</button>
+      <div id="loc-selected-info" style="display:none; margin-top:16px; padding:14px; background:var(--surface2); border-radius:8px; border:1px solid var(--border)">
+        <div id="loc-selected-text" style="font-size:13px; color:var(--green); margin-bottom:14px; font-weight:500"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Label</label>
+            <input class="form-input" id="loc-label" placeholder="e.g. Work, Costco, Airport">
+          </div>
+          <div class="form-group" style="flex:0 0 130px">
+            <label class="form-label">Days per Week</label>
+            <select class="form-input" id="loc-days">
+              <option value="1">1 day</option>
+              <option value="2">2 days</option>
+              <option value="3">3 days</option>
+              <option value="4">4 days</option>
+              <option value="5" selected>5 days</option>
+              <option value="6">6 days</option>
+              <option value="7">7 days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="status-msg" id="loc-status" style="margin-top:10px"></div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn primary" id="loc-save-btn" onclick="saveLocation()" disabled>Add Location</button>
+        <button class="btn" onclick="closeAddLocation()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCATION MAP PICKER MODAL -->
+  <div class="modal-overlay" id="loc-map-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Pick Location on Map</div>
+        <button class="modal-close" onclick="closeLocMapPicker()">×</button>
+      </div>
+      <div id="loc-map"></div>
+      <div class="map-hint" id="loc-map-hint">Click anywhere on the map to drop a pin on the destination.</div>
+      <div class="map-selected" id="loc-map-selected"></div>
+      <div class="modal-actions">
+        <button class="btn primary" id="loc-map-confirm-btn" onclick="confirmLocMapLocation()" disabled>Use This Location</button>
+        <button class="btn" onclick="closeLocMapPicker()">Back</button>
+      </div>
     </div>
   </div>
 
   <!-- CHARTS TAB -->
   <div class="tab-panel" id="tab-charts">
-    <div class="empty-state">
-      <div class="icon">📈</div>
-      <div class="title">No history yet</div>
-      <div class="hint">Charts will appear after your first calculation run.</div>
+    <div style="display:grid; gap:24px">
+
+      <div class="card">
+        <div class="card-title">Cost per Trip over Time</div>
+        <div id="chart-trip-empty" class="empty-state" style="padding:32px 0">
+          <div class="icon">📈</div>
+          <div class="title">No history yet</div>
+          <div class="hint">Hit Refresh on the Locations tab to start logging.</div>
+        </div>
+        <canvas id="chart-trip-cost" style="display:none; max-height:320px"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Gas Price over Time ($/L)</div>
+        <div id="chart-gas-empty" class="empty-state" style="padding:32px 0">
+          <div class="icon">⛽</div>
+          <div class="title">No gas price history yet</div>
+          <div class="hint">Save a gas price to start tracking.</div>
+        </div>
+        <canvas id="chart-gas-price" style="display:none; max-height:240px"></canvas>
+      </div>
+
     </div>
   </div>
 
@@ -212,10 +373,135 @@
 
   <!-- SETTINGS TAB -->
   <div class="tab-panel" id="tab-settings">
-    <div class="empty-state">
-      <div class="icon">⚙️</div>
-      <div class="title">Settings</div>
-      <div class="hint">Coming in the next build slice.</div>
+    <div class="settings-wrap">
+
+      <!-- Home Address -->
+      <div class="card">
+        <div class="card-title">Home Address</div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 120px">
+            <label class="form-label">Street #</label>
+            <input class="form-input" type="text" id="addr-number" placeholder="e.g. 1247" autocomplete="off" oninput="onAddrFieldChange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Street Name</label>
+            <input class="form-input" type="text" id="addr-street" placeholder="e.g. Rang des Érables" autocomplete="off" oninput="onAddrFieldChange()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">City / Township</label>
+            <input class="form-input" type="text" id="addr-city" placeholder="e.g. Saint-Lin" autocomplete="off" oninput="onAddrFieldChange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Province / State</label>
+            <select class="form-input" id="addr-province" onchange="onAddrFieldChange()">
+              <option value="">— Select —</option>
+              <optgroup label="Canadian Provinces &amp; Territories">
+                <option value="Alberta">Alberta</option>
+                <option value="British Columbia">British Columbia</option>
+                <option value="Manitoba">Manitoba</option>
+                <option value="New Brunswick">New Brunswick</option>
+                <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
+                <option value="Northwest Territories">Northwest Territories</option>
+                <option value="Nova Scotia">Nova Scotia</option>
+                <option value="Nunavut">Nunavut</option>
+                <option value="Ontario">Ontario</option>
+                <option value="Prince Edward Island">Prince Edward Island</option>
+                <option value="Quebec">Quebec</option>
+                <option value="Saskatchewan">Saskatchewan</option>
+                <option value="Yukon">Yukon</option>
+              </optgroup>
+              <optgroup label="US States">
+                <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option>
+                <option>California</option><option>Colorado</option><option>Connecticut</option><option>Delaware</option>
+                <option>Florida</option><option>Georgia</option><option>Hawaii</option><option>Idaho</option>
+                <option>Illinois</option><option>Indiana</option><option>Iowa</option><option>Kansas</option>
+                <option>Kentucky</option><option>Louisiana</option><option>Maine</option><option>Maryland</option>
+                <option>Massachusetts</option><option>Michigan</option><option>Minnesota</option><option>Mississippi</option>
+                <option>Missouri</option><option>Montana</option><option>Nebraska</option><option>Nevada</option>
+                <option>New Hampshire</option><option>New Jersey</option><option>New Mexico</option><option>New York</option>
+                <option>North Carolina</option><option>North Dakota</option><option>Ohio</option><option>Oklahoma</option>
+                <option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option><option>South Carolina</option>
+                <option>South Dakota</option><option>Tennessee</option><option>Texas</option><option>Utah</option>
+                <option>Vermont</option><option>Virginia</option><option>Washington</option><option>West Virginia</option>
+                <option>Wisconsin</option><option>Wyoming</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0 0 140px">
+            <label class="form-label">Country</label>
+            <select class="form-input" id="addr-country" onchange="onAddrFieldChange()">
+              <option value="Canada" selected>Canada</option>
+              <option value="United States">United States</option>
+            </select>
+          </div>
+        </div>
+        <div class="addr-wrap" style="position:relative">
+          <div class="addr-dropdown" id="addr-dropdown"></div>
+        </div>
+        <div class="form-hint">Fill in the fields above — matching addresses appear as choices below. Select one to save.</div>
+        <div class="form-actions">
+          <button class="btn primary" onclick="saveAddress()">Save Address</button>
+          <button class="btn" onclick="openMapPicker()">📍 Pick on Map</button>
+          <span class="status-msg" id="addr-status"></span>
+        </div>
+      </div>
+
+      <!-- Map Picker Modal -->
+      <div class="modal-overlay" id="map-modal">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">Pick Your Home Location</div>
+            <button class="modal-close" onclick="closeMapPicker()">×</button>
+          </div>
+          <div id="map"></div>
+          <div class="map-hint" id="map-hint">Click anywhere on the map to drop a pin on your home location.</div>
+          <div class="map-selected" id="map-selected"></div>
+          <div class="modal-actions">
+            <button class="btn primary" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>Use This Location</button>
+            <button class="btn" onclick="closeMapPicker()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gas Price -->
+      <div class="card">
+        <div class="card-title">Gas Price</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Price ($/L)</label>
+            <input class="form-input" type="number" id="input-gas-price" step="0.001" min="0" placeholder="e.g. 1.650">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <input class="form-input" type="text" id="input-gas-notes" placeholder="e.g. Costco pump">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn primary" onclick="saveGasPrice()">Save &amp; Log</button>
+          <span class="status-msg" id="gas-status"></span>
+        </div>
+        <div class="form-hint" style="margin-top:12px">Each save is logged to history and used in all trip cost calculations.</div>
+
+        <hr class="divider">
+        <div class="card-title">Gas Price Log</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="right">$/L</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="gas-log-tbody">
+              <tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No entries yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -228,6 +514,7 @@
     document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'charts') loadCharts();
   }
 
   // ── VEHICLE CASCADE ──────────────────────────────────────────────────────────
@@ -337,6 +624,7 @@
   async function loadMyVehicles() {
     const r = await fetch('/api/my-vehicles');
     const data = await r.json();
+    _vehicleCount = data.vehicles.length;
     renderVehicleGrid(data.vehicles);
     const addBtn = document.getElementById('btn-add-vehicle');
     if (data.vehicles.length >= 3) {
@@ -362,6 +650,20 @@
           <div class="vc-stat"><div class="val">${v.hwy_l100km ?? '—'}</div><div class="lbl">Hwy</div></div>
           <div class="vc-stat"><div class="val">${v.combined_l100km ?? '—'}</div><div class="lbl">Comb</div></div>
         </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px">
+          <span style="font-size:11px; color:var(--muted); white-space:nowrap">Tank (L)</span>
+          <input type="number" min="1" max="200" step="0.5" id="tank-${v.id}"
+            style="width:68px; background:var(--surface2); border:1px solid var(--border); border-radius:5px; padding:4px 8px; color:var(--text); font-size:13px; outline:none"
+            placeholder="e.g. 53"
+            value="${v.tank_size_l || ''}"
+            onfocus="this.style.borderColor='var(--blue)'"
+            onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter') saveTankSize(${v.id}, this.value)">
+          <button class="btn primary" style="padding:3px 10px; font-size:12px"
+            onclick="saveTankSize(${v.id}, document.getElementById('tank-${v.id}').value)">Save</button>
+          <button class="btn" style="padding:3px 9px; font-size:13px" title="Search Google for tank size"
+            onclick="searchTankSize('${v.year}', '${v.make}', '${v.model}', '${v.trim || ''}')">🔍</button>
+        </div>
       `;
       grid.appendChild(card);
     });
@@ -382,6 +684,718 @@
     await loadMyVehicles();
   }
 
+  // ── ADDRESS SEARCH ────────────────────────────────────────────────────────────
+  let _addrTimer = null;
+  let _selectedGeo = null;
+
+  function onAddrFieldChange() {
+    _selectedGeo = null;
+    clearTimeout(_addrTimer);
+    const street = document.getElementById('addr-street').value.trim();
+    const city   = document.getElementById('addr-city').value.trim();
+    if (!street && !city) {
+      document.getElementById('addr-dropdown').classList.remove('open');
+      return;
+    }
+    _addrTimer = setTimeout(searchAddresses, 400);
+  }
+
+  async function searchAddresses() {
+    const number   = document.getElementById('addr-number').value.trim();
+    const street   = document.getElementById('addr-street').value.trim();
+    const city     = document.getElementById('addr-city').value.trim();
+    const province = document.getElementById('addr-province').value;
+    const country  = document.getElementById('addr-country').value;
+    const dropdown = document.getElementById('addr-dropdown');
+
+    const params = new URLSearchParams({
+      street_number: number,
+      street_name:   street,
+      city:          city,
+      state:         province,
+      country:       country,
+    });
+
+    dropdown.innerHTML = '<div class="addr-result" style="color:var(--muted)">Searching…</div>';
+    dropdown.classList.add('open');
+    try {
+      const r = await fetch(`/api/geocode/search?${params}`);
+      const data = await r.json();
+      if (!data.results.length) {
+        dropdown.innerHTML = '<div class="addr-result" style="color:var(--muted)">No matches found — try adjusting the fields</div>';
+        dropdown.classList.add('open');
+        return;
+      }
+      dropdown.innerHTML = data.results.map((res, i) => {
+        const parts = res.display_name.split(',');
+        const main  = parts.slice(0, 2).join(',').trim();
+        const sub   = parts.slice(2, 5).join(',').trim();
+        return `<div class="addr-result" onclick="selectAddress(${i})">
+          <div class="addr-main">${main}</div>
+          <div class="addr-sub">${sub}</div>
+        </div>`;
+      }).join('');
+      dropdown._results = data.results;
+      dropdown.classList.add('open');
+    } catch { dropdown.classList.remove('open'); }
+  }
+
+  function selectAddress(i) {
+    const dropdown = document.getElementById('addr-dropdown');
+    const result = dropdown._results[i];
+    _selectedGeo = result;
+    dropdown.classList.remove('open');
+    setAddrStatus('✓ Selected: ' + result.display_name.split(',').slice(0, 3).join(','), 'ok');
+  }
+
+
+  // ── MAP PICKER ───────────────────────────────────────────────────────────────
+  let _map = null;
+  let _mapMarker = null;
+  let _mapGeo = null;
+
+  function openMapPicker() {
+    document.getElementById('map-modal').classList.add('open');
+    document.getElementById('map-selected').textContent = '';
+    document.getElementById('map-hint').textContent = 'Click anywhere on the map to drop a pin on your home location.';
+    document.getElementById('map-confirm-btn').disabled = true;
+    _mapGeo = null;
+
+    // Init map once
+    const center = (_homeLat && _homeLng) ? [_homeLat, _homeLng] : [56, -96];
+    const zoom   = (_homeLat && _homeLng) ? 10 : 4;
+    if (!_map) {
+      _map = L.map('map').setView(center, zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(_map);
+      _map.on('click', onMapClick);
+    } else {
+      _map.setView(center, zoom);
+    }
+    setTimeout(() => _map.invalidateSize(), 100);
+  }
+
+  function closeMapPicker() {
+    document.getElementById('map-modal').classList.remove('open');
+  }
+
+  async function onMapClick(e) {
+    const { lat, lng } = e.latlng;
+    document.getElementById('map-hint').textContent = 'Looking up address...';
+    document.getElementById('map-selected').textContent = '';
+    document.getElementById('map-confirm-btn').disabled = true;
+    _mapGeo = null;
+
+    // Place/move marker
+    if (_mapMarker) {
+      _mapMarker.setLatLng([lat, lng]);
+    } else {
+      _mapMarker = L.marker([lat, lng]).addTo(_map);
+    }
+
+    try {
+      const r = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      _mapGeo = data;
+      document.getElementById('map-hint').textContent = 'Click the map to adjust the pin.';
+      document.getElementById('map-selected').textContent = '✓ ' + data.display_name;
+      document.getElementById('map-confirm-btn').disabled = false;
+    } catch {
+      document.getElementById('map-hint').textContent = 'Could not look up that location. Try clicking nearby.';
+    }
+  }
+
+  function confirmMapLocation() {
+    if (!_mapGeo) return;
+    _selectedGeo = _mapGeo;
+
+    // Populate the 5 address fields
+    document.getElementById('addr-number').value   = _mapGeo.street_number || '';
+    document.getElementById('addr-street').value   = _mapGeo.street_name   || '';
+    document.getElementById('addr-city').value     = _mapGeo.city          || '';
+    document.getElementById('addr-country').value  = _mapGeo.country === 'United States' ? 'United States' : 'Canada';
+
+    // Match province/state dropdown — try exact match first, then partial
+    const provSel = document.getElementById('addr-province');
+    const stateVal = _mapGeo.state || '';
+    let matched = false;
+    for (const opt of provSel.options) {
+      if (opt.value.toLowerCase() === stateVal.toLowerCase()) {
+        provSel.value = opt.value;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) provSel.value = '';
+
+    closeMapPicker();
+    setAddrStatus('✓ Location picked from map: ' + _mapGeo.display_name.split(',').slice(0, 3).join(','), 'ok');
+  }
+
+  // ── SETTINGS ─────────────────────────────────────────────────────────────────
+  function setAddrStatus(msg, type = '') {
+    const el = document.getElementById('addr-status');
+    el.textContent = msg; el.className = 'status-msg ' + type;
+  }
+  function setGasStatus(msg, type = '') {
+    const el = document.getElementById('gas-status');
+    el.textContent = msg; el.className = 'status-msg ' + type;
+  }
+
+  async function saveAddress() {
+    if (!_selectedGeo) { setAddrStatus('Select an address from the results first.', 'err'); return; }
+    setAddrStatus('Saving...', 'loading');
+    try {
+      const r = await fetch('/api/settings/address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: _selectedGeo.display_name })
+      });
+      if (!r.ok) { const e = await r.json(); setAddrStatus(e.detail || 'Failed.', 'err'); return; }
+      const data = await r.json();
+      setAddrStatus('✓ Saved — ' + data.display_name.split(',').slice(0, 3).join(','), 'ok');
+      updateHeader();
+    } catch { setAddrStatus('Network error.', 'err'); }
+  }
+
+  async function saveGasPrice() {
+    const price = parseFloat(document.getElementById('input-gas-price').value);
+    const notes = document.getElementById('input-gas-notes').value.trim();
+    if (isNaN(price) || price <= 0) { setGasStatus('Enter a valid price.', 'err'); return; }
+    setGasStatus('Saving...', 'loading');
+    try {
+      const r = await fetch('/api/settings/gas-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price, notes })
+      });
+      if (!r.ok) { const e = await r.json(); setGasStatus(e.detail || 'Failed.', 'err'); return; }
+      setGasStatus('✓ Saved & logged', 'ok');
+      updateHeader();
+      loadGasLog();
+    } catch { setGasStatus('Network error.', 'err'); }
+  }
+
+  async function loadGasLog() {
+    try {
+      const r = await fetch('/api/settings/gas-log');
+      const data = await r.json();
+      const tbody = document.getElementById('gas-log-tbody');
+      if (!data.log.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No entries yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.log.map(row => {
+        const date = new Date(row.recorded_at + 'Z').toLocaleDateString('en-CA', { year:'numeric', month:'short', day:'numeric' });
+        return `<tr>
+          <td>${date}</td>
+          <td class="right">$${parseFloat(row.price_per_litre).toFixed(3)}</td>
+          <td class="muted">${row.notes || '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch { console.warn('Could not load gas log'); }
+  }
+
+  // ── HEADER ────────────────────────────────────────────────────────────────────
+  async function updateHeader() {
+    try {
+      const r = await fetch('/api/settings');
+      const s = await r.json();
+
+      const homeEl = document.getElementById('header-home');
+      if (s.home_address) {
+        homeEl.textContent = s.home_address;
+        homeEl.className = 'value normal';
+      } else {
+        homeEl.textContent = 'Not set';
+        homeEl.className = 'value normal empty';
+      }
+
+      const gasEl = document.getElementById('header-gas');
+      if (s.current_gas_price) {
+        const p = parseFloat(s.current_gas_price);
+        gasEl.textContent = '$' + p.toFixed(3) + ' /L';
+        gasEl.className = 'value';
+        document.getElementById('header-gas-input').value = p.toFixed(3);
+        document.getElementById('input-gas-price').value  = p.toFixed(3);
+      } else {
+        gasEl.textContent = 'Not set';
+        gasEl.className = 'value empty';
+      }
+
+      const updEl = document.getElementById('header-updated');
+      if (s.last_gas_price_update) {
+        const d = new Date(s.last_gas_price_update + 'Z');
+        updEl.textContent = d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+        updEl.className = 'value normal';
+      } else {
+        updEl.textContent = '—';
+        updEl.className = 'value normal empty';
+      }
+
+      // Store home coords for map pickers
+      _homeLat = s.home_lat ? parseFloat(s.home_lat) : null;
+      _homeLng = s.home_lng ? parseFloat(s.home_lng) : null;
+      updatePrereqsBanner();
+    } catch { console.warn('Could not load settings'); }
+  }
+
+  let _homeLat = null, _homeLng = null;
+  let _vehicleCount = 0;
+
+  // ── LOCATIONS ────────────────────────────────────────────────────────────────
+  let _locGeo = null;
+  let _locMap = null;
+  let _locMapMarker = null;
+  let _locMapGeo = null;
+  let _locSearchTimer = null;
+
+  function openAddLocation() {
+    document.getElementById('loc-modal').classList.add('open');
+    _locGeo = null;
+    document.getElementById('loc-search').value = '';
+    document.getElementById('loc-dropdown').classList.remove('open');
+    document.getElementById('loc-selected-info').style.display = 'none';
+    document.getElementById('loc-label').value = '';
+    document.getElementById('loc-days').value = '5';
+    document.getElementById('loc-save-btn').disabled = true;
+    setLocStatus('');
+  }
+
+  function closeAddLocation() {
+    document.getElementById('loc-modal').classList.remove('open');
+  }
+
+  function setLocStatus(msg, type = '') {
+    const el = document.getElementById('loc-status');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+  }
+
+  function onLocSearchInput() {
+    clearTimeout(_locSearchTimer);
+    const q = document.getElementById('loc-search').value.trim();
+    if (!q) { document.getElementById('loc-dropdown').classList.remove('open'); return; }
+    _locSearchTimer = setTimeout(searchLocations, 350);
+  }
+
+  async function searchLocations() {
+    const q = document.getElementById('loc-search').value.trim();
+    const dropdown = document.getElementById('loc-dropdown');
+    if (!q) { dropdown.classList.remove('open'); return; }
+    dropdown.innerHTML = '<div class="addr-result" style="color:var(--muted)">Searching…</div>';
+    dropdown.classList.add('open');
+    try {
+      const r = await fetch(`/api/locations/search?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (!data.results.length) {
+        dropdown.innerHTML = '<div class="addr-result" style="color:var(--muted)">No results found — try different keywords</div>';
+        dropdown.classList.add('open');
+        return;
+      }
+      dropdown.innerHTML = data.results.map((res, i) => {
+        const parts = res.display_name.split(',');
+        const main = parts.slice(0, 2).join(',').trim();
+        const sub  = parts.slice(2, 5).join(',').trim();
+        return `<div class="addr-result" onclick="selectLocResult(${i})">
+          <div class="addr-main">${main}</div>
+          <div class="addr-sub">${sub}</div>
+        </div>`;
+      }).join('');
+      dropdown._results = data.results;
+      dropdown.classList.add('open');
+    } catch { dropdown.classList.remove('open'); }
+  }
+
+  function selectLocResult(i) {
+    const dropdown = document.getElementById('loc-dropdown');
+    const result = dropdown._results[i];
+    dropdown.classList.remove('open');
+    setLocGeo(result);
+  }
+
+  function setLocGeo(geo) {
+    _locGeo = geo;
+    const autoLabel = geo.display_name.split(',')[0].trim();
+    document.getElementById('loc-label').value = autoLabel;
+    document.getElementById('loc-selected-text').textContent = '✓ ' + geo.display_name.split(',').slice(0, 3).join(',').trim();
+    document.getElementById('loc-selected-info').style.display = 'block';
+    document.getElementById('loc-save-btn').disabled = false;
+  }
+
+  function openLocMapPicker() {
+    document.getElementById('loc-map-modal').classList.add('open');
+    document.getElementById('loc-map-selected').textContent = '';
+    document.getElementById('loc-map-hint').textContent = 'Click anywhere on the map to drop a pin on the destination.';
+    document.getElementById('loc-map-confirm-btn').disabled = true;
+    _locMapGeo = null;
+
+    const center = (_homeLat && _homeLng) ? [_homeLat, _homeLng] : [56, -96];
+    const zoom   = (_homeLat && _homeLng) ? 10 : 4;
+    if (!_locMap) {
+      _locMap = L.map('loc-map').setView(center, zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(_locMap);
+      _locMap.on('click', onLocMapClick);
+    } else {
+      _locMap.setView(center, zoom);
+    }
+    setTimeout(() => _locMap.invalidateSize(), 100);
+  }
+
+  function closeLocMapPicker() {
+    document.getElementById('loc-map-modal').classList.remove('open');
+  }
+
+  async function onLocMapClick(e) {
+    const { lat, lng } = e.latlng;
+    document.getElementById('loc-map-hint').textContent = 'Looking up address...';
+    document.getElementById('loc-map-selected').textContent = '';
+    document.getElementById('loc-map-confirm-btn').disabled = true;
+    _locMapGeo = null;
+
+    if (_locMapMarker) {
+      _locMapMarker.setLatLng([lat, lng]);
+    } else {
+      _locMapMarker = L.marker([lat, lng]).addTo(_locMap);
+    }
+
+    try {
+      const r = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      _locMapGeo = { display_name: data.display_name, lat: data.lat, lng: data.lng };
+      document.getElementById('loc-map-hint').textContent = 'Click to adjust the pin.';
+      document.getElementById('loc-map-selected').textContent = '✓ ' + data.display_name;
+      document.getElementById('loc-map-confirm-btn').disabled = false;
+    } catch {
+      document.getElementById('loc-map-hint').textContent = 'Could not look up that location. Try clicking nearby.';
+    }
+  }
+
+  function confirmLocMapLocation() {
+    if (!_locMapGeo) return;
+    closeLocMapPicker();
+    setLocGeo(_locMapGeo);
+  }
+
+  async function saveLocation() {
+    if (!_locGeo) return;
+    const label = document.getElementById('loc-label').value.trim();
+    const days  = parseInt(document.getElementById('loc-days').value);
+    if (!label) { setLocStatus('Enter a label for this location.', 'err'); return; }
+    setLocStatus('Calculating road distance...', 'loading');
+    document.getElementById('loc-save-btn').disabled = true;
+    try {
+      const r = await fetch('/api/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, address: _locGeo.display_name, lat: _locGeo.lat, lng: _locGeo.lng, days_per_week: days })
+      });
+      if (!r.ok) {
+        const e = await r.json();
+        setLocStatus(e.detail || 'Failed to add location.', 'err');
+        document.getElementById('loc-save-btn').disabled = false;
+        return;
+      }
+      closeAddLocation();
+      await calculateAndRender();
+    } catch {
+      setLocStatus('Network error.', 'err');
+      document.getElementById('loc-save-btn').disabled = false;
+    }
+  }
+
+  function setCalcStatus(msg, type = '') {
+    const el = document.getElementById('calc-status');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+  }
+
+  function updatePrereqsBanner() {
+    const banner = document.getElementById('prereqs-banner');
+    const missing = [];
+    if (!_homeLat || !_homeLng)
+      missing.push('<a href="#" onclick="switchTab(\'settings\');return false">Set your home address</a> in Settings');
+    const gasVal = parseFloat(document.getElementById('header-gas-input').value);
+    if (!gasVal || gasVal <= 0)
+      missing.push('<a href="#" onclick="switchTab(\'settings\');return false">Add a gas price</a> in Settings');
+    if (_vehicleCount === 0)
+      missing.push('<a href="#" onclick="switchTab(\'vehicles\');return false">Add at least one vehicle</a> in Vehicles');
+
+    if (!missing.length) { banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    banner.innerHTML = `<div class="prereqs-banner"><span class="pi">⚠</span><span><strong>Setup needed:</strong> ${missing.join(' &nbsp;·&nbsp; ')}</span></div>`;
+  }
+
+  async function calculateAndRender() {
+    // Save gas price from header input first
+    const gasInput = document.getElementById('header-gas-input');
+    const price = parseFloat(gasInput.value);
+
+    // Highlight the input if empty
+    if (isNaN(price) || price <= 0) {
+      gasInput.style.borderColor = 'var(--red)';
+      gasInput.style.boxShadow = '0 0 0 2px rgba(248,81,73,0.25)';
+      setTimeout(() => { gasInput.style.borderColor = 'var(--border)'; gasInput.style.boxShadow = ''; }, 2500);
+    }
+
+    if (!isNaN(price) && price > 0) {
+      await fetch('/api/settings/gas-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price })
+      });
+      document.getElementById('input-gas-price').value = price.toFixed(3);
+      const gasEl = document.getElementById('header-gas');
+      gasEl.textContent = '$' + price.toFixed(3) + ' /L';
+      gasEl.className = 'value';
+      const now = new Date();
+      document.getElementById('header-updated').textContent =
+        now.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById('header-updated').className = 'value normal';
+    }
+
+    setCalcStatus('Calculating...', 'loading');
+    document.getElementById('btn-refresh').disabled = true;
+    try {
+      const r = await fetch('/api/calculate', { method: 'POST' });
+      if (!r.ok) {
+        const e = await r.json();
+        // Fall back to plain location list on prereq errors
+        setCalcStatus(e.detail || 'Could not calculate.', 'err');
+        updatePrereqsBanner();
+        await loadLocations();
+        return;
+      }
+      const data = await r.json();
+      _vehicleCount = data.vehicles.length;
+      const d = new Date(data.calculated_at + 'Z');
+      setCalcStatus('Updated ' + d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }), 'ok');
+      renderLocations(data.locations, data.vehicles);
+      updatePrereqsBanner();
+      if (document.getElementById('tab-charts').classList.contains('active')) loadCharts();
+    } catch {
+      setCalcStatus('Network error.', 'err');
+      await loadLocations();
+    } finally {
+      document.getElementById('btn-refresh').disabled = false;
+    }
+  }
+
+  async function loadLocations() {
+    try {
+      const r = await fetch('/api/locations');
+      const data = await r.json();
+      renderLocations(data.locations, []);
+    } catch { console.warn('Could not load locations'); }
+  }
+
+  function renderLocations(locations, vehicles) {
+    const container = document.getElementById('locations-list');
+    if (!locations.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="icon">📍</div>
+        <div class="title">No locations yet</div>
+        <div class="hint">Add your first destination above. Make sure your home address is set in Settings first.</div>
+      </div>`;
+      return;
+    }
+
+    const hasCosts = vehicles && vehicles.length > 0;
+
+    // Build vehicle header rows (row 1: vehicle name spanning 4 cols; row 2: sub-labels)
+    const vehHeaderRow1 = hasCosts
+      ? vehicles.map(v => `
+          <th colspan="4" style="border-left:1px solid var(--border); border-bottom:1px solid var(--border)">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+              <span style="color:var(--gold); font-size:11px; font-weight:500">${v.full_tank_cost != null ? 'Full Tank: $' + v.full_tank_cost.toFixed(2) : ''}</span>
+              <span style="text-align:right">${v.label}</span>
+            </div>
+          </th>`).join('')
+      : '';
+    const vehHeaderRow2 = hasCosts
+      ? vehicles.map(() => `
+          <th class="right" style="border-left:1px solid var(--border)">Per Trip</th>
+          <th class="right">Per Week</th>
+          <th class="right">Monthly</th>
+          <th class="right">Annual</th>`).join('')
+      : '';
+
+    const rows = locations.map(loc => {
+      const costCols = hasCosts
+        ? vehicles.map(v => {
+            const c = loc.costs && loc.costs[v.id];
+            return c
+              ? `<td class="right" style="border-left:1px solid var(--border)">$${c.cost_per_trip.toFixed(2)}</td>
+                 <td class="right" style="color:var(--gold)">$${c.weekly.toFixed(2)}</td>
+                 <td class="right">$${c.monthly.toFixed(0)}</td>
+                 <td class="right" style="color:var(--green); font-weight:600">$${c.annual.toFixed(0)}</td>`
+              : `<td class="right" style="border-left:1px solid var(--border)" colspan="4" class="muted">—</td>`;
+          }).join('')
+        : '';
+
+      return `<tr>
+        <td style="font-weight:600; white-space:nowrap">${loc.label}</td>
+        <td class="muted" style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${loc.address}</td>
+        <td class="right">${loc.distance_km != null ? loc.distance_km.toFixed(1) : '—'}</td>
+        <td class="right">
+          <select class="cascade-select" style="min-width:58px; padding:4px 8px; font-size:12px"
+            onchange="onDaysChange(${loc.id}, this.value)">
+            ${[1,2,3,4,5,6,7].map(d => `<option value="${d}" ${d === loc.days_per_week ? 'selected' : ''}>${d}</option>`).join('')}
+          </select>
+        </td>
+        ${costCols}
+        <td style="text-align:right; white-space:nowrap">
+          <button class="btn danger-outline" style="padding:4px 10px; font-size:12px" onclick="removeLocation(${loc.id})">Remove</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div class="table-wrap" style="overflow-x:auto">
+      <table style="min-width:100%">
+        <thead>
+          <tr>
+            <th rowspan="2">Label</th>
+            <th rowspan="2">Address</th>
+            <th rowspan="2" class="right">One-way km</th>
+            <th rowspan="2" class="right">Days/Wk</th>
+            ${vehHeaderRow1}
+            <th rowspan="2"></th>
+          </tr>
+          <tr>${vehHeaderRow2}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  async function onDaysChange(id, days) {
+    try {
+      await fetch(`/api/locations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days_per_week: parseInt(days) })
+      });
+      await calculateAndRender();
+    } catch { console.warn('Could not update days_per_week'); }
+  }
+
+  async function removeLocation(id) {
+    if (!confirm('Remove this location?')) return;
+    await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+    await calculateAndRender();
+  }
+
+  // ── CHARTS ───────────────────────────────────────────────────────────────────
+  let _tripChart = null, _gasChart = null;
+
+  const _chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { labels: { color: '#e6edf3', font: { size: 12 }, boxWidth: 14 } },
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e', maxRotation: 45 }, grid: { color: '#30363d' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' }, beginAtZero: false },
+    },
+  };
+
+  async function loadCharts() {
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch('/api/charts/trip-cost'),
+        fetch('/api/charts/gas-price'),
+      ]);
+      const [trip, gas] = await Promise.all([r1.json(), r2.json()]);
+
+      // Trip cost chart
+      const tripEmpty  = document.getElementById('chart-trip-empty');
+      const tripCanvas = document.getElementById('chart-trip-cost');
+      if (!trip.labels.length) {
+        tripEmpty.style.display = 'block';
+        tripCanvas.style.display = 'none';
+      } else {
+        tripEmpty.style.display = 'none';
+        tripCanvas.style.display = 'block';
+        if (_tripChart) _tripChart.destroy();
+        _tripChart = new Chart(tripCanvas, {
+          type: 'line',
+          data: {
+            labels:   trip.labels,
+            datasets: trip.datasets.map(d => ({ ...d, tension: 0.3, pointRadius: 5, fill: false })),
+          },
+          options: {
+            ..._chartDefaults,
+            plugins: {
+              ..._chartDefaults.plugins,
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y?.toFixed(2)}` } },
+            },
+            scales: {
+              ..._chartDefaults.scales,
+              y: { ..._chartDefaults.scales.y, ticks: { color: '#8b949e', callback: v => '$' + v.toFixed(2) } },
+            },
+          },
+        });
+      }
+
+      // Gas price chart
+      const gasEmpty  = document.getElementById('chart-gas-empty');
+      const gasCanvas = document.getElementById('chart-gas-price');
+      if (!gas.labels.length) {
+        gasEmpty.style.display = 'block';
+        gasCanvas.style.display = 'none';
+      } else {
+        gasEmpty.style.display = 'none';
+        gasCanvas.style.display = 'block';
+        if (_gasChart) _gasChart.destroy();
+        _gasChart = new Chart(gasCanvas, {
+          type: 'line',
+          data: {
+            labels:   gas.labels,
+            datasets: gas.datasets.map(d => ({ ...d, tension: 0.3, pointRadius: 5, fill: true })),
+          },
+          options: {
+            ..._chartDefaults,
+            plugins: {
+              ..._chartDefaults.plugins,
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y?.toFixed(3)}` } },
+            },
+            scales: {
+              ..._chartDefaults.scales,
+              y: { ..._chartDefaults.scales.y, ticks: { color: '#8b949e', callback: v => '$' + v.toFixed(3) } },
+            },
+          },
+        });
+      }
+    } catch (e) { console.warn('Could not load charts', e); }
+  }
+
+  // ── TANK SIZE ─────────────────────────────────────────────────────────────────
+  async function saveTankSize(id, value) {
+    const tank = parseFloat(value);
+    if (isNaN(tank) || tank <= 0) return;
+    try {
+      await fetch(`/api/my-vehicles/${id}/tank`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tank_size_l: tank })
+      });
+      await calculateAndRender();
+    } catch { console.warn('Could not save tank size'); }
+  }
+
+  function searchTankSize(year, make, model, trim) {
+    const q = encodeURIComponent(`${year} ${make} ${model} ${trim} fuel tank size litres`);
+    window.open(`https://www.google.com/search?q=${q}`, '_blank');
+  }
+
   // ── INIT ──────────────────────────────────────────────────────────────────────
   async function init() {
     // Load years into cascade
@@ -393,7 +1407,7 @@
         data.years.map(y => `<option value="${y}">${y}</option>`).join('');
     } catch { console.warn('Could not load years from fueleconomy.gov'); }
 
-    await loadMyVehicles();
+    await Promise.all([loadMyVehicles(), updateHeader(), loadGasLog(), calculateAndRender()]);
   }
 
   init();
